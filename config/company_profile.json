@@ -1,0 +1,26 @@
+{
+  "company_name": "SalesBot AI Solutions",
+  "mission": "To empower sales teams with intelligent automation.",
+  "product_name": "AutoCaller X",
+  "product_description": "An AI-powered cold calling assistant that handles initial outreach and schedules qualified meetings.",
+  "value_proposition": "AutoCaller X saves your sales team hundreds of hours by filtering leads and booking appointments, allowing them to focus on closing deals.",
+  "target_audience": "B2B sales teams in tech companies, SMBs looking to scale their sales efforts.",
+  "key_selling_points": [
+    "Increases call volume by 5x.",
+    "Improves lead qualification accuracy.",
+    "Seamlessly integrates with your existing CRM (planned feature).",
+    "Provides detailed call analytics."
+  ],
+  "conversation_goal": "To determine if the lead is a good fit for our product and to schedule a 15-minute discovery call with a senior sales representative if there's interest.",
+  "scheduling_parameters": {
+    "calendar_id": "primary",
+    "meeting_duration_minutes": 30,
+    "business_hours_start": "09:00",
+    "business_hours_end": "17:00",
+    "business_days": [0, 1, 2, 3, 4],
+    "timezone": "America/New_York",
+    "days_to_check_availability": 7,
+    "slots_to_propose": 3,
+    "sales_representative_email": "sales.rep@example.com"
+  }
+}

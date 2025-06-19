@@ -1,0 +1,20 @@
+[
+  {
+    "id": "lead_001",
+    "name": "Jane Doe",
+    "phone_number": "+15551237777",
+    "company_name": "Innovatech Solutions",
+    "role": "CTO",
+    "linkedin_url": "http://linkedin.com/in/janedoe",
+    "custom_notes": "Expressed interest in cloud services at a recent webinar."
+  },
+  {
+    "id": "lead_002",
+    "name": "Robert Smith",
+    "phone_number": "+15551238888",
+    "company_name": "Future Gadgets Inc.",
+    "role": "VP of Engineering",
+    "linkedin_url": "http://linkedin.com/in/robertsmith",
+    "custom_notes": "Looking to optimize their development pipeline."
+  }
+]
