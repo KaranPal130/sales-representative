@@ -2,7 +2,7 @@ import os
 from datetime import datetime, timedelta, timezone
 from googleapiclient.discovery import build
 from google.oauth2.service_account import Credentials as ServiceAccountCredentials
-from src.config_manager import get_google_application_credentials
+from config_manager import get_google_application_credentials
 import logging
 
 logger = logging.getLogger(__name__)

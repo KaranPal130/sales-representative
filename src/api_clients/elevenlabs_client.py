@@ -1,4 +1,4 @@
-from src.config_manager import get_elevenlabs_api_key
+from config_manager import get_elevenlabs_api_key
 from elevenlabs.client import ElevenLabs
 import logging
 

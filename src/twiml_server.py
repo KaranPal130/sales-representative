@@ -11,13 +11,13 @@ from twilio.twiml.voice_response import VoiceResponse, Gather
 from datetime import datetime as dt, timedelta, time
 import pytz
 
-from src.api_clients.elevenlabs_client import ElevenLabsClient
-from src.api_clients.gemini_client import GeminiClient, ContentBlockedError
-from src.api_clients.google_calendar_client import GoogleCalendarClient
-from src.lead_manager import get_lead_by_id, Lead
-from src.config_manager import get_company_profile, get_scheduling_parameters
-from src.scheduling_logic import find_available_slots, format_slot_for_proposal
-from src.conversation_manager import (
+from api_clients.elevenlabs_client import ElevenLabsClient
+from api_clients.gemini_client import GeminiClient, ContentBlockedError
+from api_clients.google_calendar_client import GoogleCalendarClient
+from lead_manager import get_lead_by_id, Lead
+from config_manager import get_company_profile, get_scheduling_parameters
+from scheduling_logic import find_available_slots, format_slot_for_proposal
+from conversation_manager import (
     ConversationManager,
     CALL_STATE_GREETING, CALL_STATE_QUALIFYING, CALL_STATE_PROPOSING_SLOTS,
     CALL_STATE_AWAITING_SLOT_CONFIRMATION, CALL_STATE_ATTEMPTING_BOOKING,

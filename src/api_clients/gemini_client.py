@@ -3,7 +3,7 @@ import google.generativeai as genai
 from google.generativeai.types import GenerationConfig # For explicit config typing
 from google.api_core import exceptions as google_exceptions # For error handling
 
-from src.config_manager import get_gemini_api_key
+from config_manager import get_gemini_api_key
 
 logger = logging.getLogger(__name__)
 

@@ -1,11 +1,11 @@
 [
   {
     "id": "lead_001",
-    "name": "Jane Doe",
-    "phone_number": "+15551237777",
+    "name": "Karan Pal",
+    "phone_number": "+91903329054",
     "company_name": "Innovatech Solutions",
     "role": "CTO",
-    "linkedin_url": "http://linkedin.com/in/janedoe",
+    "linkedin_url": "http://linkedin.com/in/karanpal",
     "custom_notes": "Expressed interest in cloud services at a recent webinar."
   },
   {

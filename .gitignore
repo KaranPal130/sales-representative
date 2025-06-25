@@ -10,6 +10,7 @@ __pycache__/
 env/
 venv/
 .venv/
+sales-rep/
 # Build artifacts
 build/
 dist/
