@@ -30,6 +30,115 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 # Global instance of ConversationManager
 conv_manager = ConversationManager()
 
+def create_enhanced_gather(action_url, timeout=10):
+    """
+    Create a Gather object with enhanced speech recognition settings for better accuracy.
+    """
+    return Gather(
+        input='speech',
+        action=action_url,
+        method='POST',
+        speechTimeout='auto',
+        timeout=timeout,
+        language='en-US',
+        enhanced=True,
+        speechModel='phone_call',
+        profanityFilter=False,
+        partialResultCallback=None  # Could be used for real-time transcription if needed
+    )
+
+def create_enhanced_gather_with_hints(action_url, timeout=10, include_speech_hints=True):
+    """
+    Create a Gather object with enhanced speech recognition settings and optional speech hints.
+    """
+    gather = Gather(
+        input='speech',
+        action=action_url,
+        method='POST',
+        speechTimeout='auto',
+        timeout=timeout,
+        language='en-US',
+        enhanced=True,
+        speechModel='phone_call',
+        profanityFilter=False,
+        partialResultCallback=None
+    )
+    
+    # Add speech hints for better recognition of common sales conversation terms
+    if include_speech_hints:
+        # These hints help Twilio's speech recognition better understand context
+        speech_hints = [
+            "yes", "no", "maybe", "interested", "not interested",
+            "tell me more", "sounds good", "that works", "I'm busy",
+            "call back", "email", "schedule", "meeting", "demo",
+            "Monday", "Tuesday", "Wednesday", "Thursday", "Friday",
+            "morning", "afternoon", "evening", "AM", "PM",
+            "this week", "next week", "tomorrow"
+        ]
+        # Note: Twilio's speechHints parameter may not be available in all regions
+        # but including it here for completeness
+        try:
+            gather.speech_hints = speech_hints
+        except AttributeError:
+            # speechHints not supported in this SDK version
+            pass
+    
+    return gather
+
+def clean_and_validate_transcription(transcribed_text, lead_id):
+    """
+    Clean and validate transcription text to improve AI processing.
+    Returns cleaned text and a confidence indicator.
+    """
+    if not transcribed_text:
+        return "", False
+    
+    # Basic cleaning
+    cleaned = transcribed_text.strip()
+    
+    # Remove common transcription artifacts
+    artifacts = [
+        "uh", "um", "ah", "er", "uhm", "mmm", "hmm",
+        "[inaudible]", "[unclear]", "[noise]", "[silence]"
+    ]
+    
+    words = cleaned.lower().split()
+    original_word_count = len(words)
+    
+    # Filter out artifacts but keep the structure
+    filtered_words = []
+    for word in words:
+        # Remove punctuation for comparison
+        clean_word = ''.join(c for c in word if c.isalpha())
+        if clean_word not in artifacts:
+            filtered_words.append(word)
+    
+    cleaned = ' '.join(filtered_words)
+    
+    # Confidence indicators
+    is_confident = True
+    
+    # Check for very short responses (might be background noise)
+    if len(cleaned) < 3:
+        logging.warning(f"Very short transcription for lead {lead_id}: '{cleaned}'")
+        is_confident = False
+    
+    # Check for too many artifacts removed
+    if original_word_count > 0 and len(filtered_words) / original_word_count < 0.5:
+        logging.warning(f"Many artifacts removed from transcription for lead {lead_id}. Original: '{transcribed_text}', Cleaned: '{cleaned}'")
+        is_confident = False
+    
+    # Check for gibberish patterns (repeated characters, no vowels, etc.)
+    if len(cleaned) > 3:
+        vowel_count = sum(1 for c in cleaned.lower() if c in 'aeiou')
+        if vowel_count == 0:
+            logging.warning(f"No vowels detected in transcription for lead {lead_id}: '{cleaned}'")
+            is_confident = False
+    
+    logging.info(f"Transcription processing for lead {lead_id}: Original: '{transcribed_text}' -> Cleaned: '{cleaned}' (Confident: {is_confident})")
+    
+    return cleaned, is_confident
+
 def _cleanup_directory_contents(directory_path):
     logging.info(f"Starting cleanup for directory: {directory_path}")
     if os.path.exists(directory_path):
@@ -117,7 +226,7 @@ def start_call_twiml():
         return Response("Server config error for URL generation.", status=500, mimetype='text/plain')
 
     response_twiml.play(audio_url)
-    gather = Gather(input='speech', action=url_for('handle_speech_input', lead_id=lead.id, _external=True), method='POST', speechTimeout='auto', timeout=5)
+    gather = create_enhanced_gather(url_for('handle_speech_input', lead_id=lead.id, _external=True))
     response_twiml.append(gather)
     response_twiml.say("We didn't receive any input. Goodbye.")
     response_twiml.hangup()
@@ -129,9 +238,12 @@ def start_call_twiml():
 @app.route('/call/handle_response', methods=['POST', 'GET'])
 def handle_speech_input():
     lead_id = request.values.get('lead_id')
-    transcribed_text = request.values.get('SpeechResult', '').strip()
+    raw_transcribed_text = request.values.get('SpeechResult', '').strip()
     
-    logging.info(f"Received {request.method} request to /call/handle_response. Lead ID: {lead_id}, Transcription: '{transcribed_text}'")
+    # Get additional Twilio speech recognition data for better analysis
+    speech_confidence = request.values.get('Confidence', 'unknown')
+    
+    logging.info(f"Received {request.method} request to /call/handle_response. Lead ID: {lead_id}, Raw Transcription: '{raw_transcribed_text}', Confidence: {speech_confidence}")
 
     if not lead_id:
         logging.error("Critical: lead_id missing in /call/handle_response.")
@@ -140,8 +252,14 @@ def handle_speech_input():
         error_response.hangup()
         return Response(str(error_response), mimetype='text/xml')
 
+    # Clean and validate the transcription
+    transcribed_text, is_confident = clean_and_validate_transcription(raw_transcribed_text, lead_id)
+    
+    # Track retry attempts for this conversation
+    retry_count = conv_manager.get_retry_count(lead_id)
+
     current_state = conv_manager.get_current_state(lead_id)
-    logging.info(f"Handling speech for lead_id: {lead_id}. Current State: {current_state}. Transcription: '{transcribed_text}'")
+    logging.info(f"Handling speech for lead_id: {lead_id}. Current State: {current_state}. Cleaned Transcription: '{transcribed_text}', Confident: {is_confident}, Retry Count: {retry_count}")
 
     if conv_manager.get_history_length(lead_id) >= MAX_CONVERSATION_TURNS:
         logging.warning(f"Max conversation turns ({MAX_CONVERSATION_TURNS}) reached for lead {lead_id}. Ending call.")
@@ -179,17 +297,45 @@ def handle_speech_input():
         error_response.hangup()
         return Response(str(error_response), mimetype='text/xml')
 
-    if not transcribed_text and current_state != CALL_STATE_GREETING :
-        logging.info(f"Empty transcription for lead {lead_id} in state {current_state}. Re-prompting.")
-        # ... (re-prompt TwiML)
-        response_twiml = VoiceResponse()
-        response_twiml.say("Sorry, I didn't quite catch that.")
-        gather = Gather(input='speech', action=url_for('handle_speech_input', lead_id=lead.id, _external=True), method='POST', speechTimeout='auto', timeout=5)
-        gather.say("Could you please say that again?")
-        response_twiml.append(gather)
-        response_twiml.say("Still no input. Goodbye.")
-        response_twiml.hangup()
-        return Response(str(response_twiml), mimetype='text/xml')
+    # Handle poor quality or empty transcriptions with retry logic
+    if (not transcribed_text or not is_confident) and current_state != CALL_STATE_GREETING:
+        max_retries = 2  # Allow up to 2 retries for unclear speech
+        
+        if retry_count < max_retries:
+            logging.info(f"Poor quality transcription for lead {lead_id} in state {current_state}. Retry {retry_count + 1}/{max_retries}.")
+            
+            # Increment retry count
+            conv_manager.increment_retry_count(lead_id)
+            
+            response_twiml = VoiceResponse()
+            
+            if not transcribed_text:
+                if retry_count == 0:
+                    response_twiml.say("I'm sorry, I didn't catch what you said.")
+                else:
+                    response_twiml.say("I'm still having trouble hearing you clearly.")
+            else:
+                response_twiml.say("I heard something but it wasn't quite clear.")
+            
+            gather = create_enhanced_gather_with_hints(url_for('handle_speech_input', lead_id=lead.id, _external=True), timeout=12)
+            
+            if retry_count == 0:
+                gather.say("Could you please repeat that a bit more clearly?")
+            else:
+                gather.say("Please speak slowly and clearly. What did you say?")
+                
+            response_twiml.append(gather)
+            response_twiml.say("I'm sorry, I'm still having trouble hearing you. Let me have someone call you back.")
+            response_twiml.hangup()
+            return Response(str(response_twiml), mimetype='text/xml')
+        else:
+            logging.warning(f"Max retries ({max_retries}) reached for unclear speech from lead {lead_id}. Proceeding with fallback.")
+            # Use a fallback response if we can't get clear speech
+            transcribed_text = "I'm having trouble hearing you clearly"
+    else:
+        # Reset retry count on successful transcription
+        if transcribed_text and is_confident:
+            conv_manager.reset_retry_count(lead_id)
 
     history_context = conv_manager.get_formatted_history_for_prompt(lead_id)
     current_state_for_prompt = conv_manager.get_current_state(lead_id) # Get potentially updated state
@@ -203,7 +349,8 @@ def handle_speech_input():
         f"Maintain a friendly, professional, and helpful tone. Your responses should be concise, typically 1-2 sentences, maximum 3. "
         f"You are talking to {lead.name} from {lead.company_name}. "
         f"Current conversation state: {current_state_for_prompt}.\n"
-        f"The client just said: '{transcribed_text}'.\n\n"
+        f"The client just said: '{transcribed_text}'.\n"
+        f"{'NOTE: The speech transcription quality was poor, so interpret the response charitably and ask for clarification if needed.' if not is_confident else ''}\n\n"
         f"**Your Task (align with current state):**\n"
         f"Your behavior should align with the current conversation state: '{current_state_for_prompt}'.\n"
         f"If state is GREETING/QUALIFYING, focus on introduction, rapport, and understanding needs. Transition to PROPOSING_SLOTS if strong interest is shown.\n"
@@ -216,7 +363,8 @@ def handle_speech_input():
         f"6. If the client shows clear/strong disinterest (e.g., 'not interested', 'stop calling', 'remove me from your list'), respond politely and end your response with 'GOODBYE_HANGUP'.\n"
         f"7. **Proposing Meeting Slots**: If state is `PROPOSING_SLOTS` (or if history includes 'System: I have found these available slots...'), your primary goal for this turn is to propose these exact slots to the user. Example: 'Great! I found a few times: option 0 is [slot A string], option 1 is [slot B string]. Does one of those options work for you?'. If no slots available from history, inform the user and suggest manual follow-up.\n"
         f"8. **Handling Response to Slot Proposal**: If state is `AWAITING_SLOT_CONFIRMATION` and the user responds to proposed slots, try to understand their choice. If they confirm a specific slot by its number/index or by repeating enough details, acknowledge it (e.g., 'Excellent, Tuesday at 2 PM is confirmed.'), and then include `[MEETING_CONFIRMED_SLOT_INDEX: {{{{index_0_based}}}}]` (replace `{{{{index_0_based}}}}` with the chosen numeric index). If they say none work or ask for other times, acknowledge this (e.g., 'Okay, I understand. I'll make a note for our team to find some alternative times for you.'). If ambiguous, ask for clarification.\n"
-        f"9. Otherwise (if not covered by above, e.g. general chat in QUALIFYING state), continue conversation naturally. Do NOT use special keywords unless criteria are met.\n\n"
+        f"9. If the transcription was unclear (noted above), politely ask for clarification while still trying to be helpful. For example: 'I want to make sure I understand you correctly. Did you say...?' or 'Could you repeat that? I want to give you the best response.'\n"
+        f"10. Otherwise (if not covered by above, e.g. general chat in QUALIFYING state), continue conversation naturally. Do NOT use special keywords unless criteria are met.\n\n"
         f"Generate your response now."
     )
     logging.info(f"Full Gemini Prompt for lead {lead_id}:\n{prompt}")
@@ -383,7 +531,7 @@ def handle_speech_input():
         # Ensure state is saved if it was changed (e.g. to AWAITING_SLOT_CONFIRMATION)
         # conv_manager.set_state(lead_id, current_state_for_saving) # Already done by specific set_state calls
         logging.info(f"Continuing conversation with {lead_id}. Current state: {current_state_for_saving}. Re-gathering.")
-        gather = Gather(input='speech', action=url_for('handle_speech_input', lead_id=lead_id, _external=True), method='POST', speechTimeout='auto', timeout=5)
+        gather = create_enhanced_gather(url_for('handle_speech_input', lead_id=lead_id, _external=True))
         response_twiml.append(gather)
         response_twiml.say("Sorry, I didn't catch that. Could you say it again?")
         response_twiml.hangup()

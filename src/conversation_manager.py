@@ -21,7 +21,8 @@ class ConversationManager:
     def initialize_conversation(self, lead_id: str):
         self.conversation_histories[lead_id] = {
             "history": [],
-            "state": CALL_STATE_GREETING
+            "state": CALL_STATE_GREETING,
+            "retry_count": 0  # Track speech recognition retries
         }
         logger.info(f"Initialized conversation for lead_id: {lead_id} to state {CALL_STATE_GREETING}")
 
@@ -100,3 +101,21 @@ class ConversationManager:
     def get_full_history_for_lead(self, lead_id: str) -> list:
         """Returns the list of turn dictionaries for a given lead."""
         return self.get_conversation_data(lead_id)["history"]
+
+    def get_retry_count(self, lead_id: str) -> int:
+        """Get the current retry count for speech recognition issues."""
+        conv_data = self.get_conversation_data(lead_id)
+        return conv_data.get("retry_count", 0)
+    
+    def increment_retry_count(self, lead_id: str):
+        """Increment the retry count for speech recognition issues."""
+        conv_data = self.get_conversation_data(lead_id)
+        current_retry = conv_data.get("retry_count", 0)
+        conv_data["retry_count"] = current_retry + 1
+        logger.debug(f"Incremented retry count for lead {lead_id} to {conv_data['retry_count']}")
+    
+    def reset_retry_count(self, lead_id: str):
+        """Reset retry count when speech is successfully processed."""
+        conv_data = self.get_conversation_data(lead_id)
+        conv_data["retry_count"] = 0
+        logger.debug(f"Reset retry count for lead {lead_id}")
