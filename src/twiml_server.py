@@ -126,10 +126,12 @@ def start_call_twiml():
     return Response(str(response_twiml), mimetype='text/xml')
 
 
-@app.route('/call/handle_response', methods=['POST'])
+@app.route('/call/handle_response', methods=['POST', 'GET'])
 def handle_speech_input():
     lead_id = request.values.get('lead_id')
     transcribed_text = request.values.get('SpeechResult', '').strip()
+    
+    logging.info(f"Received {request.method} request to /call/handle_response. Lead ID: {lead_id}, Transcription: '{transcribed_text}'")
 
     if not lead_id:
         logging.error("Critical: lead_id missing in /call/handle_response.")

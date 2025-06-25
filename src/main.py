@@ -21,8 +21,8 @@ import sys
 
 # Assuming this script is run from the project root, or PYTHONPATH is set.
 # If running `python src/main.py` from root, these imports should work.
-from src.api_clients.twilio_client import TwilioClient
-from src.lead_manager import load_leads, get_lead_by_id, Lead
+from api_clients.twilio_client import TwilioClient
+from lead_manager import load_leads, get_lead_by_id, Lead
 
 # Setup basic logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s')

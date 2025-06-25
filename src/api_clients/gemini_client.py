@@ -17,12 +17,12 @@ class GeminiClient:
     """
     Client for interacting with the Google Gemini API.
     """
-    def __init__(self, model_name: str = 'gemini-pro'):
+    def __init__(self, model_name: str = 'gemini-2.5-flash-preview-04-17'):
         """
         Initializes the Gemini client.
 
         Args:
-            model_name: The name of the Gemini model to use (e.g., 'gemini-pro').
+            model_name: The name of the Gemini model to use (e.g., 'gemini-2.5-flash-preview-04-17').
         """
         try:
             api_key = get_gemini_api_key()

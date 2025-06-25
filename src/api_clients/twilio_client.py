@@ -1,5 +1,5 @@
 from twilio.rest import Client
-from src.config_manager import get_twilio_account_sid, get_twilio_auth_token, get_twilio_phone_number
+from config_manager import get_twilio_account_sid, get_twilio_auth_token, get_twilio_phone_number
 import logging
 
 logger = logging.getLogger(__name__)

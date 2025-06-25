@@ -39,7 +39,7 @@ class ElevenLabsClient:
             Exception: For other unexpected errors.
         """
         try:
-            audio_stream = self.client.generate(text=text, voice=voice_id)
+            audio_stream = self.client.text_to_speech.convert(text=text, voice_id=voice_id)
             # Concatenate audio chunks
             audio_bytes = b"".join(chunk for chunk in audio_stream)
             return audio_bytes
